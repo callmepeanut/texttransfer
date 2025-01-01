@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:texttransfer/services/netcut_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:texttransfer/models/text_item.dart';
-// import 'package:texttransfer/services/storage_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -75,8 +74,20 @@ class _MyHomePageState extends State<MyHomePage> {
         throw Exception('剪贴板为空');
       }
 
-      // 检查是否与第一项内容相同
-      if (_texts != null && _texts!.isNotEmpty && _texts![0].content == clipboardData.text) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // 先获取最新数据
+      final latestTexts = await NetcutService.getNoteInfo();
+      
+      // 检查是否与最新数据的第一项内容相同
+      if (latestTexts.isNotEmpty && latestTexts[0].content == clipboardData.text) {
+        setState(() {
+          _texts = latestTexts;  // 更新本地列表为最新数据
+          _isLoading = false;
+        });
+        
         Fluttertoast.showToast(
           msg: '该内容已添加过',
           backgroundColor: Colors.orange,
@@ -84,17 +95,13 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
-      setState(() {
-        _isLoading = true;
-      });
-
       final newItem = TextItem(
         content: clipboardData.text!,
         device: 'Flutter App',
         createTime: DateTime.now().millisecondsSinceEpoch,
       );
 
-      final updatedTexts = [newItem, ...?_texts];
+      final updatedTexts = [newItem, ...latestTexts];  // 使用最新获取的数据
       
       // 保存到服务器
       await NetcutService.saveNote(updatedTexts);
