@@ -1,8 +1,9 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:texttransfer/models/text_item.dart';
 
 class NetcutService {
-  static Future<Map<String, dynamic>> getNoteInfo() async {
+  static Future<List<TextItem>> getNoteInfo() async {
     final url = Uri.parse('https://api.txttool.cn/netcut/note/info/');
     
     try {
@@ -21,7 +22,13 @@ class NetcutService {
       );
 
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final responseData = json.decode(response.body);
+        if (responseData['status'] == 1 && responseData['data'] != null) {
+          final noteContent = json.decode(responseData['data']['note_content']);
+          final List<dynamic> texts = noteContent['texts'];
+          return texts.map((item) => TextItem.fromJson(item)).toList();
+        }
+        throw Exception('数据格式错误');
       } else {
         throw Exception('请求失败: ${response.statusCode}');
       }
