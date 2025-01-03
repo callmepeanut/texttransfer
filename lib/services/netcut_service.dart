@@ -1,12 +1,20 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:texttransfer/models/text_item.dart';
+import 'package:texttransfer/services/settings_service.dart';
 
 class NetcutService {
   static String? _noteId;
   static String? _noteToken;
 
   static Future<List<TextItem>> getNoteInfo() async {
+    final noteName = await SettingsService.getNoteName();
+    final notePwd = await SettingsService.getNotePwd();
+    
+    if (noteName == null || notePwd == null) {
+      throw Exception('请先在设置中配置账号信息');
+    }
+
     final url = Uri.parse('https://api.txttool.cn/netcut/note/info/');
     
     try {
@@ -19,8 +27,8 @@ class NetcutService {
           'Referer': 'https://netcut.cn/'
         },
         body: {
-          'note_name': 'ddd',
-          'note_pwd': 'kanyun'
+          'note_name': noteName,
+          'note_pwd': notePwd
         }
       );
 
@@ -48,6 +56,13 @@ class NetcutService {
       throw Exception('需要先调用getNoteInfo初始化noteId和token');
     }
 
+    final noteName = await SettingsService.getNoteName();
+    final notePwd = await SettingsService.getNotePwd();
+    
+    if (noteName == null || notePwd == null) {
+      throw Exception('请先在设置中配置账号信息');
+    }
+
     final url = Uri.parse('https://api.txttool.cn/netcut/note/save/');
     
     try {
@@ -68,12 +83,12 @@ class NetcutService {
           'Referer': 'https://netcut.cn/'
         },
         body: {
-          'note_name': 'ddd',
+          'note_name': noteName,
           'note_id': _noteId,
           'note_content': json.encode(noteContent),
           'note_token': _noteToken,
           'expire_time': '259200',
-          'note_pwd': 'kanyun'
+          'note_pwd': notePwd
         }
       );
 

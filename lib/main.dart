@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:texttransfer/pages/settings_page.dart';
 import 'package:texttransfer/services/netcut_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:texttransfer/models/text_item.dart';
+import 'package:texttransfer/services/settings_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // await SettingsService.init();  // 初始化 MMKV
   runApp(const MyApp());
 }
 
@@ -145,6 +149,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
         ],
       ),
       body: _texts == null
