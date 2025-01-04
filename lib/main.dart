@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:texttransfer/pages/settings_page.dart';
-import 'package:texttransfer/services/netcut_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:texttransfer/models/text_item.dart';
-import 'package:texttransfer/services/settings_service.dart';
+import 'package:texttransfer/pages/settings_page.dart';
+import 'package:texttransfer/services/netcut_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -174,12 +173,28 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            item.content,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.content,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: item.content));
+                                  Fluttertoast.showToast(
+                                    msg: '已复制到剪贴板',
+                                    backgroundColor: Colors.green,
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           Text(
