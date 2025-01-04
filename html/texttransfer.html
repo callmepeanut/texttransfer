@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netcut Demo</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .app-bar {
+            background-color: #9c27b0;
+            color: white;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .title {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 8px;
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .content {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .meta {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* 设置对话框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .save-btn {
+            background-color: #9c27b0;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+        }
+
+        .save-btn:hover {
+            background-color: #7b1fa2;
+        }
+
+        /* 设置对话框样式补充 */
+        .modal-content h2 {
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .admin-link {
+            color: #9c27b0;
+            text-decoration: none;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        .admin-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-bar">
+        <h1 class="title">Netcut Demo</h1>
+        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    </div>
+
+    <div class="container" id="content">
+        <!-- 内容将通过 JavaScript 动态加载 -->
+    </div>
+
+    <!-- 设置对话框 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h2>设置</h2>
+            <div class="input-group">
+                <label class="input-label">笔记本名称 (用于登录和访问笔记本)</label>
+                <div class="input-row">
+                    <input type="text" id="noteName" class="input-field" placeholder="Note Name">
+                    <a id="adminLink" href="#" target="_blank" class="admin-link">访问后台</a>
+                </div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">笔记本密码 (用于保护笔记本安全)</label>
+                <input type="password" id="notePwd" class="input-field" placeholder="Note Password">
+            </div>
+            <button class="save-btn" onclick="saveSettings()">保存</button>
+        </div>
+    </div>
+
+    <script>
+        // 存储设置
+        function saveSettings() {
+            const noteName = document.getElementById('noteName').value;
+            const notePwd = document.getElementById('notePwd').value;
+            
+            if (!noteName || !notePwd) {
+                alert('请填写完整信息');
+                return;
+            }
+
+            localStorage.setItem('note_name', noteName);
+            localStorage.setItem('note_pwd', notePwd);
+            
+            alert('保存成功');
+            document.getElementById('settingsModal').style.display = 'none';
+            loadData(); // 重新加载数据
+        }
+
+        // 打开设置对话框
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            const noteName = localStorage.getItem('note_name');
+            const notePwd = localStorage.getItem('note_pwd');
+            
+            if (noteName) {
+                document.getElementById('noteName').value = noteName;
+                document.getElementById('adminLink').href = 'https://netcut.cn/' + noteName;
+            }
+            if (notePwd) {
+                document.getElementById('notePwd').value = notePwd;
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('settingsModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 加载数据
+        async function loadData() {
+            const noteName = localStorage.getItem('note_name');
+            const notePwd = localStorage.getItem('note_pwd');
+            
+            if (!noteName || !notePwd) {
+                document.getElementById('content').innerHTML = '<div class="card">暂无数据</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch('https://api.txttool.cn/netcut/note/info/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json',
+                        'Origin': 'https://netcut.cn',
+                        'Referer': 'https://netcut.cn/'
+                    },
+                    body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}`
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 1 && data.data) {
+                    const noteContent = JSON.parse(data.data.note_content);
+                    const texts = noteContent.texts;
+                    
+                    document.getElementById('content').innerHTML = texts.map(item => `
+                        <div class="card">
+                            <div class="content">${item.content}</div>
+                            <div class="meta">设备: ${item.device}</div>
+                            <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    throw new Error('数据格式错误');
+                }
+            } catch (error) {
+                document.getElementById('content').innerHTML = `
+                    <div class="card">
+                        加载失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载时执行
+        loadData();
+
+        // 添加 noteName 输入框变化监听
+        document.getElementById('noteName').addEventListener('input', function(e) {
+            const adminLink = document.getElementById('adminLink');
+            adminLink.href = 'https://netcut.cn/' + e.target.value;
+        });
+    </script>
+</body>
+</html> 
