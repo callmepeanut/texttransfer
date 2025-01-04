@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Netcut Demo</title>
+    <title>文本传输助手</title>
     <style>
         body {
             margin: 0;
@@ -136,11 +136,64 @@
         .admin-link:hover {
             text-decoration: underline;
         }
+
+        /* 添加卡片头部样式 */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #9c27b0;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .copy-btn:hover {
+            background-color: rgba(156, 39, 176, 0.1);
+        }
+
+        .copy-btn:active {
+            background-color: rgba(156, 39, 176, 0.2);
+        }
+
+        /* 修改卡片头部按钮组样式 */
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 打开链接按钮样式与复制按钮保持一致 */
+        .open-btn {
+            background: none;
+            border: none;
+            color: #9c27b0;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .open-btn:hover {
+            background-color: rgba(156, 39, 176, 0.1);
+        }
+
+        .open-btn:active {
+            background-color: rgba(156, 39, 176, 0.2);
+        }
     </style>
 </head>
 <body>
     <div class="app-bar">
-        <h1 class="title">Netcut Demo</h1>
+        <h1 class="title">文本传输助手</h1>
         <button class="settings-btn" onclick="openSettings()">⚙️</button>
     </div>
 
@@ -239,13 +292,30 @@
                     const noteContent = JSON.parse(data.data.note_content);
                     const texts = noteContent.texts;
                     
-                    document.getElementById('content').innerHTML = texts.map(item => `
-                        <div class="card">
-                            <div class="content">${item.content}</div>
-                            <div class="meta">设备: ${item.device}</div>
-                            <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
-                        </div>
-                    `).join('');
+                    document.getElementById('content').innerHTML = texts.map(item => {
+                        // 检查是否是URL
+                        const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
+                        
+                        return `
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="content">${item.content}</div>
+                                    <div class="card-actions">
+                                        <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
+                                            复制
+                                        </button>
+                                        ${isUrl ? `
+                                            <button class="open-btn" onclick="window.open('${item.content.replace(/'/g, "\\'")}', '_blank')">
+                                                打开
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                <div class="meta">设备: ${item.device}</div>
+                                <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
+                            </div>
+                        `;
+                    }).join('');
                 } else {
                     throw new Error('数据格式错误');
                 }
@@ -266,6 +336,22 @@
             const adminLink = document.getElementById('adminLink');
             adminLink.href = 'https://netcut.cn/' + e.target.value;
         });
+
+        // 修改复制功能，添加 event 参数
+        async function copyText(text, event) {
+            try {
+                await navigator.clipboard.writeText(text);
+                // 使用传入的 event 参数获取按钮
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '已复制';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 1000);
+            } catch (err) {
+                alert('复制失败: ' + err);
+            }
+        }
     </script>
 </body>
 </html> 
