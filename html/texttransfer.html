@@ -395,6 +395,12 @@
                     _noteToken = data.data.note_token;
                     _expireTime = data.data.expire_time;
                     
+                    // 检查 note_content 是否为空字符串
+                    if (data.data.note_content === '') {
+                        document.getElementById('content').innerHTML = '<div class="card">暂无数据</div>';
+                        return;
+                    }
+                    
                     const noteContent = JSON.parse(data.data.note_content);
                     const texts = noteContent.texts;
                     
@@ -503,8 +509,13 @@
                 const data = await response.json();
                 
                 if (data.status === 1 && data.data) {
-                    const noteContent = JSON.parse(data.data.note_content);
-                    const texts = noteContent.texts || [];
+                    let texts = [];
+                    
+                    // 如果 note_content 不为空，则解析现有数据
+                    if (data.data.note_content !== '') {
+                        const noteContent = JSON.parse(data.data.note_content);
+                        texts = noteContent.texts || [];
+                    }
 
                     // 检查是否与最新项目重复
                     if (texts.length > 0 && texts[0].content === newText) {

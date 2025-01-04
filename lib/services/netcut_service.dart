@@ -40,7 +40,12 @@ class NetcutService {
           _noteToken = responseData['data']['note_token'];
           _expireTime = responseData['data']['expire_time'];
           
-          final noteContent = json.decode(responseData['data']['note_content']);
+          final noteContentStr = responseData['data']['note_content'];
+          if (noteContentStr == '') {
+            return [];
+          }
+          
+          final noteContent = json.decode(noteContentStr);
           final List<dynamic> texts = noteContent['texts'];
           return texts.map((item) => TextItem.fromJson(item)).toList();
         }
