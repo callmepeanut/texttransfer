@@ -53,6 +53,10 @@
             font-size: 16px;
             font-weight: bold;
             margin-bottom: 8px;
+            word-break: break-all;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            max-width: calc(100% - 120px);
         }
 
         .meta {
@@ -143,6 +147,7 @@
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 8px;
+            gap: 16px;
         }
 
         .copy-btn {
@@ -168,6 +173,7 @@
         .card-actions {
             display: flex;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         /* 打开链接按钮样式与复制按钮保持一致 */
@@ -189,12 +195,62 @@
         .open-btn:active {
             background-color: rgba(156, 39, 176, 0.2);
         }
+
+        /* 修改 app-bar 右侧按钮组样式 */
+        .app-bar-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* 修改创建按钮样式与设置按钮保持一致 */
+        .create-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            padding: 8px;
+            font-size: 24px;
+            opacity: 0.9;
+        }
+
+        .create-btn:hover {
+            opacity: 1;
+        }
+
+        /* 创建对话框样式 */
+        .create-modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+
+        .create-modal-content h2 {
+            margin-bottom: 20px;
+        }
+
+        .textarea-field {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            min-height: 100px;
+            resize: vertical;
+        }
     </style>
 </head>
 <body>
     <div class="app-bar">
         <h1 class="title">文本传输助手</h1>
-        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        <div class="app-bar-actions">
+            <button class="create-btn" onclick="openCreateModal()">➕</button>
+            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        </div>
     </div>
 
     <div class="container" id="content">
@@ -217,6 +273,15 @@
                 <input type="password" id="notePwd" class="input-field" placeholder="Note Password">
             </div>
             <button class="save-btn" onclick="saveSettings()">保存</button>
+        </div>
+    </div>
+
+    <!-- 添加创建对话框 -->
+    <div id="createModal" class="modal">
+        <div class="create-modal-content">
+            <h2>创建文本</h2>
+            <textarea id="newText" class="textarea-field" placeholder="请输入文本内容"></textarea>
+            <button class="save-btn" onclick="createText()">创建</button>
         </div>
     </div>
 
@@ -258,13 +323,21 @@
 
         // 点击模态框外部关闭
         window.onclick = function(event) {
-            const modal = document.getElementById('settingsModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
+            const settingsModal = document.getElementById('settingsModal');
+            const createModal = document.getElementById('createModal');
+            if (event.target == settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+            if (event.target == createModal) {
+                createModal.style.display = 'none';
             }
         }
 
-        // 加载数据
+        // 添加全局变量存储 note_id 和 note_token
+        let _noteId = null;
+        let _noteToken = null;
+
+        // 修改 loadData 函数，保存 note_id 和 note_token
         async function loadData() {
             const noteName = localStorage.getItem('note_name');
             const notePwd = localStorage.getItem('note_pwd');
@@ -289,6 +362,10 @@
                 const data = await response.json();
                 
                 if (data.status === 1 && data.data) {
+                    // 保存 note_id 和 note_token
+                    _noteId = data.data.note_id;
+                    _noteToken = data.data.note_token;
+                    
                     const noteContent = JSON.parse(data.data.note_content);
                     const texts = noteContent.texts;
                     
@@ -350,6 +427,93 @@
                 }, 1000);
             } catch (err) {
                 alert('复制失败: ' + err);
+            }
+        }
+
+        // 打开创建对话框
+        function openCreateModal() {
+            const modal = document.getElementById('createModal');
+            document.getElementById('newText').value = '';
+            modal.style.display = 'block';
+        }
+
+        // 修改 createText 函数
+        async function createText() {
+            const newText = document.getElementById('newText').value.trim();
+            if (!newText) {
+                alert('请输入文本内容');
+                return;
+            }
+
+            const noteName = localStorage.getItem('note_name');
+            const notePwd = localStorage.getItem('note_pwd');
+            
+            if (!noteName || !notePwd) {
+                alert('请先在设置中配置账号信息');
+                return;
+            }
+
+            if (!_noteId || !_noteToken) {
+                alert('请先加载数据');
+                return;
+            }
+
+            try {
+                // 先获取最新数据
+                const response = await fetch('https://api.txttool.cn/netcut/note/info/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json',
+                        'Origin': 'https://netcut.cn',
+                        'Referer': 'https://netcut.cn/'
+                    },
+                    body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}`
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 1 && data.data) {
+                    const noteContent = JSON.parse(data.data.note_content);
+                    const texts = noteContent.texts || [];
+
+                    // 检查是否与最新项目重复
+                    if (texts.length > 0 && texts[0].content === newText) {
+                        alert('该文本已经添加过了');
+                        return;
+                    }
+
+                    // 添加新文本
+                    texts.unshift({
+                        content: newText,
+                        device: 'Web',
+                        createTime: Date.now()
+                    });
+
+                    // 保存更新后的数据
+                    const saveResponse = await fetch('https://api.txttool.cn/netcut/note/save/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json',
+                            'Origin': 'https://netcut.cn',
+                            'Referer': 'https://netcut.cn/'
+                        },
+                        body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}&note_content=${encodeURIComponent(JSON.stringify({texts}))}&note_id=${_noteId}&note_token=${_noteToken}`
+                    });
+
+                    const saveData = await saveResponse.json();
+                    if (saveData.status === 1) {
+                        document.getElementById('createModal').style.display = 'none';
+                        loadData(); // 重新加载数据
+                    } else {
+                        throw new Error('保存失败');
+                    }
+                } else {
+                    throw new Error('获取数据失败');
+                }
+            } catch (error) {
+                alert('创建失败: ' + error.message);
             }
         }
     </script>
