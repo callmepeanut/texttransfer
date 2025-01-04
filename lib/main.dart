@@ -218,9 +218,21 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isLoading ? null : _addClipboardText,
-        child: const Icon(Icons.content_paste),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _isLoading ? null : _makeNetcutRequest,
+            heroTag: 'refresh',
+            child: const Icon(Icons.refresh),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _isLoading ? null : _addClipboardText,
+            heroTag: 'paste',
+            child: const Icon(Icons.content_paste),
+          ),
+        ],
       ),
     );
   }
