@@ -6,6 +6,7 @@ import 'package:texttransfer/services/settings_service.dart';
 class NetcutService {
   static String? _noteId;
   static String? _noteToken;
+  static int? _expireTime;
 
   static Future<List<TextItem>> getNoteInfo() async {
     final noteName = await SettingsService.getNoteName();
@@ -37,6 +38,7 @@ class NetcutService {
         if (responseData['status'] == 1 && responseData['data'] != null) {
           _noteId = responseData['data']['note_id'];
           _noteToken = responseData['data']['note_token'];
+          _expireTime = responseData['data']['expire_time'];
           
           final noteContent = json.decode(responseData['data']['note_content']);
           final List<dynamic> texts = noteContent['texts'];
@@ -87,7 +89,7 @@ class NetcutService {
           'note_id': _noteId,
           'note_content': json.encode(noteContent),
           'note_token': _noteToken,
-          'expire_time': '259200',
+          'expire_time': (_expireTime ?? 259200).toString(),
           'note_pwd': notePwd
         }
       );
