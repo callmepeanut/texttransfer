@@ -242,12 +242,39 @@
             min-height: 100px;
             resize: vertical;
         }
+
+        /* 添加刷新按钮样式，与创建按钮保持一致 */
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            padding: 8px;
+            font-size: 24px;
+            opacity: 0.9;
+        }
+
+        .refresh-btn:hover {
+            opacity: 1;
+        }
+
+        /* 添加刷新按钮旋转动画 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .refresh-btn.spinning {
+            animation: spin 1s linear;
+            pointer-events: none; /* 旋转时禁用点击 */
+        }
     </style>
 </head>
 <body>
     <div class="app-bar">
         <h1 class="title">文本传输助手</h1>
         <div class="app-bar-actions">
+            <button class="refresh-btn" onclick="refreshData()" title="刷新">🔄</button>
             <button class="create-btn" onclick="openCreateModal()">➕</button>
             <button class="settings-btn" onclick="openSettings()">⚙️</button>
         </div>
@@ -333,11 +360,12 @@
             }
         }
 
-        // 添加全局变量存储 note_id 和 note_token
+        // 添加全局变量存储 note_id、note_token 和 expire_time
         let _noteId = null;
         let _noteToken = null;
+        let _expireTime = null;
 
-        // 修改 loadData 函数，保存 note_id 和 note_token
+        // 修改 loadData 函数，保存 note_id、note_token 和 expire_time
         async function loadData() {
             const noteName = localStorage.getItem('note_name');
             const notePwd = localStorage.getItem('note_pwd');
@@ -362,9 +390,10 @@
                 const data = await response.json();
                 
                 if (data.status === 1 && data.data) {
-                    // 保存 note_id 和 note_token
+                    // 保存 note_id、note_token 和 expire_time
                     _noteId = data.data.note_id;
                     _noteToken = data.data.note_token;
+                    _expireTime = data.data.expire_time;
                     
                     const noteContent = JSON.parse(data.data.note_content);
                     const texts = noteContent.texts;
@@ -437,7 +466,7 @@
             modal.style.display = 'block';
         }
 
-        // 修改 createText 函数
+        // 修改 createText 函数，添加 expire_time 参数
         async function createText() {
             const newText = document.getElementById('newText').value.trim();
             if (!newText) {
@@ -499,7 +528,7 @@
                             'Origin': 'https://netcut.cn',
                             'Referer': 'https://netcut.cn/'
                         },
-                        body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}&note_content=${encodeURIComponent(JSON.stringify({texts}))}&note_id=${_noteId}&note_token=${_noteToken}`
+                        body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}&note_content=${encodeURIComponent(JSON.stringify({texts}))}&note_id=${_noteId}&note_token=${_noteToken}&expire_time=${_expireTime}`
                     });
 
                     const saveData = await saveResponse.json();
@@ -515,6 +544,16 @@
             } catch (error) {
                 alert('创建失败: ' + error.message);
             }
+        }
+
+        // 添加刷新功能
+        async function refreshData() {
+            const btn = document.querySelector('.refresh-btn');
+            btn.classList.add('spinning');
+            await loadData();
+            setTimeout(() => {
+                btn.classList.remove('spinning');
+            }, 1000); // 确保动画完整播放
         }
     </script>
 </body>
