@@ -1,16 +1,13 @@
 # texttransfer
+一个文本传输助手，支持在 Android 手机和电脑之间的方便得传输文本，不需要在同一个局域网。
 
-A new Flutter project.
+## 使用方法
+1. Clone 或者下载本项目
+2. 使用浏览器打开 html/texttransfer.html 文件
+3. 点击页面右上角的设置按钮，点击访问后台，创建一个自己的剪贴板，并设置密码。将剪贴板名称和密码填入设置页面
+4. 从 Release 页面下载 apk 文件，安装到手机上，然后设置一样的剪贴板名称和密码
+5. 在手机上复制文本，然后到 APP 中点击右下角的粘贴按钮，即可将文本粘贴到 APP 中
+6. 在电脑上点击上面网页右上角的刷新按钮，即可看到手机上复制的文本
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 注意事项
+1. 本工具依赖第三方服务，使用前请查看 [第三方服务协议](https://netcut.cn/pages/terms.html)
