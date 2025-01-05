@@ -268,6 +268,24 @@
             animation: spin 1s linear;
             pointer-events: none; /* 旋转时禁用点击 */
         }
+
+        /* 修改设置对话框样式 */
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .helper-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -299,6 +317,11 @@
                 <label class="input-label">笔记本密码 (用于保护笔记本安全)</label>
                 <input type="password" id="notePwd" class="input-field" placeholder="Note Password">
             </div>
+            <div class="input-group">
+                <label class="input-label">Base64 移位值 (0-65535)</label>
+                <input type="number" id="shiftValue" class="input-field" placeholder="移位值">
+                <div class="helper-text">用于加密数据，修改后新数据将使用新的移位值</div>
+            </div>
             <button class="save-btn" onclick="saveSettings()">保存</button>
         </div>
     </div>
@@ -313,37 +336,72 @@
     </div>
 
     <script>
-        // 存储设置
+        // 添加加密解密功能
+        const DEFAULT_SHIFT = 1000;
+        let currentShift = DEFAULT_SHIFT;
+
+        function encryptText(text, shift) {
+            // 字符移位加密
+            const shifted = String.fromCharCode(
+                ...Array.from(text).map(char => (char.charCodeAt(0) + shift) % 65536)
+            );
+            // Base64 编码
+            return btoa(unescape(encodeURIComponent(shifted)));
+        }
+
+        function decryptText(encrypted, shift) {
+            try {
+                // Base64 解码
+                const decoded = decodeURIComponent(escape(atob(encrypted)));
+                // 字符移位解密
+                return String.fromCharCode(
+                    ...Array.from(decoded).map(char => (char.charCodeAt(0) - shift + 65536) % 65536)
+                );
+            } catch (e) {
+                // 如果解密失败，返回原文（兼容未加密的旧数据）
+                return encrypted;
+            }
+        }
+
+        // 修改存储设置函数
         function saveSettings() {
             const noteName = document.getElementById('noteName').value;
             const notePwd = document.getElementById('notePwd').value;
+            const shiftValue = parseInt(document.getElementById('shiftValue').value);
             
-            if (!noteName || !notePwd) {
+            if (!noteName || !notePwd || isNaN(shiftValue)) {
                 alert('请填写完整信息');
+                return;
+            }
+
+            if (shiftValue < 0 || shiftValue > 65535) {
+                alert('移位值必须在 0-65535 之间');
                 return;
             }
 
             localStorage.setItem('note_name', noteName);
             localStorage.setItem('note_pwd', notePwd);
+            localStorage.setItem('shift_value', shiftValue.toString());
+            currentShift = shiftValue;
             
             alert('保存成功');
             document.getElementById('settingsModal').style.display = 'none';
             loadData(); // 重新加载数据
         }
 
-        // 打开设置对话框
+        // 修改打开设置对话框函数
         function openSettings() {
             const modal = document.getElementById('settingsModal');
             const noteName = localStorage.getItem('note_name');
             const notePwd = localStorage.getItem('note_pwd');
+            const shiftValue = localStorage.getItem('shift_value') || DEFAULT_SHIFT;
             
             if (noteName) {
                 document.getElementById('noteName').value = noteName;
                 document.getElementById('adminLink').href = 'https://netcut.cn/' + noteName;
             }
-            if (notePwd) {
-                document.getElementById('notePwd').value = notePwd;
-            }
+            if (notePwd) document.getElementById('notePwd').value = notePwd;
+            document.getElementById('shiftValue').value = shiftValue;
             
             modal.style.display = 'block';
         }
@@ -369,6 +427,7 @@
         async function loadData() {
             const noteName = localStorage.getItem('note_name');
             const notePwd = localStorage.getItem('note_pwd');
+            currentShift = parseInt(localStorage.getItem('shift_value')) || DEFAULT_SHIFT;
             
             if (!noteName || !notePwd) {
                 document.getElementById('content').innerHTML = '<div class="card">暂无数据</div>';
@@ -390,48 +449,82 @@
                 const data = await response.json();
                 
                 if (data.status === 1 && data.data) {
-                    // 保存 note_id、note_token 和 expire_time
                     _noteId = data.data.note_id;
                     _noteToken = data.data.note_token;
                     _expireTime = data.data.expire_time;
                     
-                    // 检查 note_content 是否为空字符串
-                    if (data.data.note_content === '') {
+                    const noteContentStr = data.data.note_content;
+                    if (noteContentStr === '') {
                         document.getElementById('content').innerHTML = '<div class="card">暂无数据</div>';
                         return;
                     }
                     
-                    const noteContent = JSON.parse(data.data.note_content);
-                    const texts = noteContent.texts;
-                    
-                    document.getElementById('content').innerHTML = texts.map(item => {
-                        // 检查是否是URL
-                        const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
+                    try {
+                        // 解密数据
+                        const decryptedContent = decryptText(noteContentStr, currentShift);
+                        const noteContent = JSON.parse(decryptedContent);
+                        const texts = noteContent.texts || [];
                         
-                        return `
-                            <div class="card">
-                                <div class="card-header">
-                                    <div class="content">${item.content}</div>
-                                    <div class="card-actions">
-                                        <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
-                                            复制
-                                        </button>
-                                        ${isUrl ? `
-                                            <button class="open-btn" onclick="window.open('${item.content.replace(/'/g, "\\'")}', '_blank')">
-                                                打开
+                        document.getElementById('content').innerHTML = texts.map(item => {
+                            // 检查是否是URL
+                            const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
+                            
+                            return `
+                                <div class="card">
+                                    <div class="card-header">
+                                        <div class="content">${item.content}</div>
+                                        <div class="card-actions">
+                                            <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
+                                                复制
                                             </button>
-                                        ` : ''}
+                                            ${isUrl ? `
+                                                <button class="open-btn" onclick="window.open('${item.content.replace(/'/g, "\\'")}', '_blank')">
+                                                    打开
+                                                </button>
+                                            ` : ''}
+                                        </div>
                                     </div>
+                                    <div class="meta">设备: ${item.device}</div>
+                                    <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
                                 </div>
-                                <div class="meta">设备: ${item.device}</div>
-                                <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
-                            </div>
-                        `;
-                    }).join('');
+                            `;
+                        }).join('');
+                    } catch (decryptError) {
+                        console.error('解密失败:', decryptError);
+                        // 如果解密失败，尝试直接解析原始数据（兼容未加密的旧数据）
+                        const noteContent = JSON.parse(noteContentStr);
+                        const texts = noteContent.texts || [];
+                        
+                        document.getElementById('content').innerHTML = texts.map(item => {
+                            // 检查是否是URL
+                            const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
+                            
+                            return `
+                                <div class="card">
+                                    <div class="card-header">
+                                        <div class="content">${item.content}</div>
+                                        <div class="card-actions">
+                                            <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
+                                                复制
+                                            </button>
+                                            ${isUrl ? `
+                                                <button class="open-btn" onclick="window.open('${item.content.replace(/'/g, "\\'")}', '_blank')">
+                                                    打开
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="meta">设备: ${item.device}</div>
+                                    <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
                 } else {
                     throw new Error('数据格式错误');
                 }
             } catch (error) {
+                console.error('加载失败:', error);
                 document.getElementById('content').innerHTML = `
                     <div class="card">
                         加载失败: ${error.message}
@@ -513,8 +606,17 @@
                     
                     // 如果 note_content 不为空，则解析现有数据
                     if (data.data.note_content !== '') {
-                        const noteContent = JSON.parse(data.data.note_content);
-                        texts = noteContent.texts || [];
+                        try {
+                            // 先尝试解密数据
+                            const decryptedContent = decryptText(data.data.note_content, currentShift);
+                            const noteContent = JSON.parse(decryptedContent);
+                            texts = noteContent.texts || [];
+                        } catch (error) {
+                            // 如果解密失败，尝试直接解析（兼容未加密的旧数据）
+                            console.error('解密失败，尝试直接解析:', error);
+                            const noteContent = JSON.parse(data.data.note_content);
+                            texts = noteContent.texts || [];
+                        }
                     }
 
                     // 检查是否与最新项目重复
@@ -530,6 +632,9 @@
                         createTime: Date.now()
                     });
 
+                    // 加密数据
+                    const encryptedContent = encryptText(JSON.stringify({texts}), currentShift);
+
                     // 保存更新后的数据
                     const saveResponse = await fetch('https://api.txttool.cn/netcut/note/save/', {
                         method: 'POST',
@@ -539,7 +644,7 @@
                             'Origin': 'https://netcut.cn',
                             'Referer': 'https://netcut.cn/'
                         },
-                        body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}&note_content=${encodeURIComponent(JSON.stringify({texts}))}&note_id=${_noteId}&note_token=${_noteToken}&expire_time=${_expireTime}`
+                        body: `note_name=${encodeURIComponent(noteName)}&note_pwd=${encodeURIComponent(notePwd)}&note_content=${encodeURIComponent(encryptedContent)}&note_id=${_noteId}&note_token=${_noteToken}&expire_time=${_expireTime}`
                     });
 
                     const saveData = await saveResponse.json();
@@ -566,6 +671,16 @@
                 btn.classList.remove('spinning');
             }, 1000); // 确保动画完整播放
         }
+
+        // 页面加载时初始化 shift 值
+        window.onload = function() {
+            const savedShift = localStorage.getItem('shift_value');
+            if (!savedShift) {
+                localStorage.setItem('shift_value', DEFAULT_SHIFT.toString());
+            }
+            currentShift = parseInt(savedShift) || DEFAULT_SHIFT;
+            loadData();
+        };
     </script>
 </body>
 </html> 
