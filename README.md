@@ -10,7 +10,7 @@
 6. 在电脑上点击上面网页右上角的刷新按钮，即可看到手机上复制的文本。
 
 ## 截图
-<img src="https://i.ibb.co/7vHvsGG/texttransfer-android.png" alt="iPhone screenshot" height="300"/> <img src="https://i.ibb.co/sjYrQM8/texttransfer-web-list.png" alt="PC screenshot" height="300"/>
+<img src="https://i.ibb.co/7vHvsGG/texttransfer-android.png" alt="Android screenshot" height="300"/> <img src="https://i.ibb.co/sjYrQM8/texttransfer-web-list.png" alt="PC screenshot" height="300"/>
 
 
 ## 注意事项
