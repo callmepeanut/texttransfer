@@ -11,6 +11,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _noteNameController = TextEditingController();
   final _notePwdController = TextEditingController();
+  final _shiftController = TextEditingController();
 
   @override
   void initState() {
@@ -21,6 +22,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     final noteName = await SettingsService.getNoteName();
     final notePwd = await SettingsService.getNotePwd();
+    final shift = await SettingsService.getShift();
     
     if (noteName != null) {
       _noteNameController.text = noteName;
@@ -28,20 +30,30 @@ class _SettingsPageState extends State<SettingsPage> {
     if (notePwd != null) {
       _notePwdController.text = notePwd;
     }
+    _shiftController.text = shift.toString();
   }
 
   Future<void> _saveSettings() async {
     final noteName = _noteNameController.text.trim();
     final notePwd = _notePwdController.text.trim();
+    final shiftText = _shiftController.text.trim();
     
-    if (noteName.isEmpty || notePwd.isEmpty) {
+    if (noteName.isEmpty || notePwd.isEmpty || shiftText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请填写完整信息')),
       );
       return;
     }
 
-    await SettingsService.saveSettings(noteName, notePwd);
+    final shift = int.tryParse(shiftText);
+    if (shift == null || shift < 0 || shift > 65535) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('移位值必须在 0-65535 之间')),
+      );
+      return;
+    }
+
+    await SettingsService.saveSettings(noteName, notePwd, shift);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -55,6 +67,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void dispose() {
     _noteNameController.dispose();
     _notePwdController.dispose();
+    _shiftController.dispose();
     super.dispose();
   }
 
@@ -68,6 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: _noteNameController,
@@ -84,6 +98,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 border: OutlineInputBorder(),
               ),
               obscureText: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _shiftController,
+              decoration: const InputDecoration(
+                labelText: 'Base64 移位值 (0-65535)',
+                border: OutlineInputBorder(),
+                helperText: '用于加密数据，修改后新数据将使用新的移位值',
+              ),
+              keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 24),
             ElevatedButton(

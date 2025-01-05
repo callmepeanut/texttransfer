@@ -7,8 +7,42 @@ class NetcutService {
   static String? _noteId;
   static String? _noteToken;
   static int? _expireTime;
+  static int _shift = 1000; // 改为非 const，从设置中获取
+
+  // 添加更新 shift 的方法
+  static Future<void> updateShift() async {
+    _shift = await SettingsService.getShift();
+  }
+
+  // 添加加密方法
+  static String _encryptText(String text) {
+    // 字符移位加密
+    String shifted = String.fromCharCodes(
+      text.runes.map((int char) => (char + _shift) % 65536),
+    );
+
+    // Base64 编码
+    return base64Encode(utf8.encode(shifted));
+  }
+
+  // 添加解密方法
+  static String _decryptText(String encrypted) {
+    try {
+      // Base64 解码
+      String decoded = utf8.decode(base64Decode(encrypted));
+
+      // 字符移位解密
+      return String.fromCharCodes(
+        decoded.runes.map((int char) => (char - _shift + 65536) % 65536),
+      );
+    } catch (e) {
+      // 如果解密失败，返回原文（兼容未加密的旧数据）
+      return encrypted;
+    }
+  }
 
   static Future<List<TextItem>> getNoteInfo() async {
+    await updateShift(); // 获取最新的 shift 值
     final noteName = await SettingsService.getNoteName();
     final notePwd = await SettingsService.getNotePwd();
     
@@ -45,7 +79,9 @@ class NetcutService {
             return [];
           }
           
-          final noteContent = json.decode(noteContentStr);
+          // 解密数据
+          final decryptedContent = _decryptText(noteContentStr);
+          final noteContent = json.decode(decryptedContent);
           final List<dynamic> texts = noteContent['texts'];
           return texts.map((item) => TextItem.fromJson(item)).toList();
         }
@@ -59,6 +95,7 @@ class NetcutService {
   }
 
   static Future<void> saveNote(List<TextItem> texts) async {
+    await updateShift(); // 获取最新的 shift 值
     if (_noteId == null || _noteToken == null) {
       throw Exception('需要先调用getNoteInfo初始化noteId和token');
     }
@@ -81,6 +118,9 @@ class NetcutService {
         }).toList(),
       };
 
+      // 加密数据
+      final encryptedContent = _encryptText(json.encode(noteContent));
+
       final response = await http.post(
         url,
         headers: {
@@ -92,7 +132,7 @@ class NetcutService {
         body: {
           'note_name': noteName,
           'note_id': _noteId,
-          'note_content': json.encode(noteContent),
+          'note_content': encryptedContent,
           'note_token': _noteToken,
           'expire_time': (_expireTime ?? 259200).toString(),
           'note_pwd': notePwd
