@@ -286,6 +286,26 @@
             color: #666;
             margin-top: 4px;
         }
+
+        /* 添加删除按钮样式 */
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #f44336; /* 使用红色表示删除 */
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .delete-btn:hover {
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+
+        .delete-btn:active {
+            background-color: rgba(244, 67, 54, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -474,6 +494,9 @@
                                     <div class="card-header">
                                         <div class="content">${item.content}</div>
                                         <div class="card-actions">
+                                            <button class="delete-btn" onclick="deleteText('${item.content.replace(/'/g, "\\'")}')">
+                                                删除
+                                            </button>
                                             <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
                                                 复制
                                             </button>
@@ -504,6 +527,9 @@
                                     <div class="card-header">
                                         <div class="content">${item.content}</div>
                                         <div class="card-actions">
+                                            <button class="delete-btn" onclick="deleteText('${item.content.replace(/'/g, "\\'")}')">
+                                                删除
+                                            </button>
                                             <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
                                                 复制
                                             </button>
@@ -681,6 +707,77 @@
             currentShift = parseInt(savedShift) || DEFAULT_SHIFT;
             loadData();
         };
+
+        // 添加删除功能
+        async function deleteText(textToDelete) {
+            try {
+                // 先获取最新数据
+                const response = await fetch('https://api.txttool.cn/netcut/note/info/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json',
+                        'Origin': 'https://netcut.cn',
+                        'Referer': 'https://netcut.cn/'
+                    },
+                    body: `note_name=${encodeURIComponent(localStorage.getItem('note_name'))}&note_pwd=${encodeURIComponent(localStorage.getItem('note_pwd'))}`
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 1 && data.data) {
+                    let texts = [];
+                    
+                    // 解析现有数据
+                    if (data.data.note_content !== '') {
+                        try {
+                            // 先尝试解密数据
+                            const decryptedContent = decryptText(data.data.note_content, currentShift);
+                            const noteContent = JSON.parse(decryptedContent);
+                            texts = noteContent.texts || [];
+                        } catch (error) {
+                            console.error('解密失败，尝试直接解析:', error);
+                            const noteContent = JSON.parse(data.data.note_content);
+                            texts = noteContent.texts || [];
+                        }
+                    }
+
+                    // 过滤掉要删除的文本
+                    const filteredTexts = texts.filter(item => item.content !== textToDelete);
+
+                    if (filteredTexts.length === texts.length) {
+                        alert('未找到要删除的文本');
+                        return;
+                    }
+
+                    // 加密数据
+                    const encryptedContent = encryptText(JSON.stringify({texts: filteredTexts}), currentShift);
+
+                    // 保存更新后的数据
+                    const saveResponse = await fetch('https://api.txttool.cn/netcut/note/save/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json',
+                            'Origin': 'https://netcut.cn',
+                            'Referer': 'https://netcut.cn/'
+                        },
+                        body: `note_name=${encodeURIComponent(localStorage.getItem('note_name'))}&note_pwd=${encodeURIComponent(localStorage.getItem('note_pwd'))}&note_content=${encodeURIComponent(encryptedContent)}&note_id=${_noteId}&note_token=${_noteToken}&expire_time=${_expireTime}`
+                    });
+
+                    const saveData = await saveResponse.json();
+                    if (saveData.status === 1) {
+                        await loadData(); // 重新加载数据
+                    } else {
+                        throw new Error('保存失败');
+                    }
+                } else {
+                    throw new Error('获取数据失败');
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html> 
