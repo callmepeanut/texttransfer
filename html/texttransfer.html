@@ -489,20 +489,29 @@
                         document.getElementById('content').innerHTML = texts.map(item => {
                             // 检查是否是URL
                             const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
+                            // 对内容进行转义，确保在HTML和JS中都可以安全使用
+                            const escapedContent = JSON.stringify(item.content);
+                            // 对显示内容进行HTML转义
+                            const displayContent = item.content
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&#039;');
                             
                             return `
                                 <div class="card">
                                     <div class="card-header">
-                                        <div class="content">${item.content}</div>
+                                        <div class="content">${displayContent}</div>
                                         <div class="card-actions">
-                                            <button class="delete-btn" onclick="deleteText('${item.content.replace(/'/g, "\\'")}')">
+                                            <button class="delete-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="deleteTextByElement(this)">
                                                 删除
                                             </button>
-                                            <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
+                                            <button class="copy-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="copyTextByElement(this)">
                                                 复制
                                             </button>
                                             ${isUrl ? `
-                                                <button class="open-btn" onclick="window.open('${item.content.replace(/'/g, "\\'")}', '_blank')">
+                                                <button class="open-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="openUrlByElement(this)">
                                                     打开
                                                 </button>
                                             ` : ''}
@@ -522,20 +531,29 @@
                         document.getElementById('content').innerHTML = texts.map(item => {
                             // 检查是否是URL
                             const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
+                            // 对内容进行转义，确保在HTML和JS中都可以安全使用
+                            const escapedContent = JSON.stringify(item.content);
+                            // 对显示内容进行HTML转义
+                            const displayContent = item.content
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&#039;');
                             
                             return `
                                 <div class="card">
                                     <div class="card-header">
-                                        <div class="content">${item.content}</div>
+                                        <div class="content">${displayContent}</div>
                                         <div class="card-actions">
-                                            <button class="delete-btn" onclick="deleteText('${item.content.replace(/'/g, "\\'")}')">
+                                            <button class="delete-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="deleteTextByElement(this)">
                                                 删除
                                             </button>
-                                            <button class="copy-btn" onclick="copyText('${item.content.replace(/'/g, "\\'")}', event)">
+                                            <button class="copy-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="copyTextByElement(this)">
                                                 复制
                                             </button>
                                             ${isUrl ? `
-                                                <button class="open-btn" onclick="window.open('${item.content.replace(/'/g, "\\'")}', '_blank')">
+                                                <button class="open-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="openUrlByElement(this)">
                                                     打开
                                                 </button>
                                             ` : ''}
@@ -568,22 +586,6 @@
             const adminLink = document.getElementById('adminLink');
             adminLink.href = 'https://netcut.cn/' + e.target.value;
         });
-
-        // 修改复制功能，添加 event 参数
-        async function copyText(text, event) {
-            try {
-                await navigator.clipboard.writeText(text);
-                // 使用传入的 event 参数获取按钮
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '已复制';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                }, 1000);
-            } catch (err) {
-                alert('复制失败: ' + err);
-            }
-        }
 
         // 打开创建对话框
         function openCreateModal() {
@@ -743,16 +745,25 @@
                         }
                     }
 
-                    // 过滤掉要删除的文本
-                    const filteredTexts = texts.filter(item => item.content !== textToDelete);
+                    // 使用精确匹配确保找到正确的项目
+                    let foundIndex = -1;
+                    for (let i = 0; i < texts.length; i++) {
+                        if (texts[i].content === textToDelete) {
+                            foundIndex = i;
+                            break;
+                        }
+                    }
 
-                    if (filteredTexts.length === texts.length) {
+                    if (foundIndex === -1) {
                         alert('未找到要删除的文本');
                         return;
                     }
 
+                    // 从数组中删除项目
+                    texts.splice(foundIndex, 1);
+
                     // 加密数据
-                    const encryptedContent = encryptText(JSON.stringify({texts: filteredTexts}), currentShift);
+                    const encryptedContent = encryptText(JSON.stringify({texts}), currentShift);
 
                     // 保存更新后的数据
                     const saveResponse = await fetch('https://api.txttool.cn/netcut/note/save/', {
@@ -777,6 +788,41 @@
                 }
             } catch (error) {
                 alert('删除失败: ' + error.message);
+            }
+        }
+
+        // 基于元素删除文本的辅助函数
+        function deleteTextByElement(element) {
+            try {
+                const content = JSON.parse(element.getAttribute('data-content'));
+                deleteText(content);
+            } catch (error) {
+                alert('处理失败: ' + error.message);
+            }
+        }
+
+        // 基于元素复制文本的辅助函数
+        async function copyTextByElement(element) {
+            try {
+                const content = JSON.parse(element.getAttribute('data-content'));
+                await navigator.clipboard.writeText(content);
+                const originalText = element.textContent;
+                element.textContent = '已复制';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                }, 1000);
+            } catch (error) {
+                alert('复制失败: ' + error.message);
+            }
+        }
+
+        // 基于元素打开URL的辅助函数
+        function openUrlByElement(element) {
+            try {
+                const url = JSON.parse(element.getAttribute('data-content'));
+                window.open(url, '_blank');
+            } catch (error) {
+                alert('打开URL失败: ' + error.message);
             }
         }
     </script>
