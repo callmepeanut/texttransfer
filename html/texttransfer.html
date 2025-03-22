@@ -376,6 +376,25 @@
         .close-btn:hover {
             color: #333;
         }
+
+        .eye-btn {
+            background: none;
+            border: none;
+            color: #9c27b0;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 16px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .eye-btn:hover {
+            opacity: 1;
+        }
+
+        .eye-btn.active {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -396,16 +415,22 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <h2>设置</h2>
+            <div class="button-group" style="margin-bottom: 16px;">
+                <button class="secondary-btn" onclick="generateRandomConfig()">一键生成配置</button>
+            </div>
             <div class="input-group">
                 <label class="input-label">笔记本名称 (用于登录和访问笔记本)</label>
                 <div class="input-row">
                     <input type="text" id="noteName" class="input-field" placeholder="Note Name">
-                    <a id="adminLink" href="#" target="_blank" class="admin-link">访问后台</a>
+                    <a id="adminLink" href="#" class="admin-link" onclick="openAdminPage(event)">访问后台</a>
                 </div>
             </div>
             <div class="input-group">
                 <label class="input-label">笔记本密码 (用于保护笔记本安全)</label>
-                <input type="password" id="notePwd" class="input-field" placeholder="Note Password">
+                <div class="input-row">
+                    <input type="password" id="notePwd" class="input-field" placeholder="Note Password">
+                    <button class="eye-btn" onclick="togglePassword()" title="显示/隐藏密码">👁️</button>
+                </div>
             </div>
             <div class="input-group">
                 <label class="input-label">Base64 移位值 (0-65535)</label>
@@ -447,8 +472,7 @@
 
     <script>
         // 添加加密解密功能
-        const DEFAULT_SHIFT = 1000;
-        let currentShift = DEFAULT_SHIFT;
+        let currentShift = null;
 
         function encryptText(text, shift) {
             // 字符移位加密
@@ -504,14 +528,14 @@
             const modal = document.getElementById('settingsModal');
             const noteName = localStorage.getItem('note_name');
             const notePwd = localStorage.getItem('note_pwd');
-            const shiftValue = localStorage.getItem('shift_value') || DEFAULT_SHIFT;
+            const shiftValue = localStorage.getItem('shift_value');
             
             if (noteName) {
                 document.getElementById('noteName').value = noteName;
                 document.getElementById('adminLink').href = 'https://netcut.cn/' + noteName;
             }
             if (notePwd) document.getElementById('notePwd').value = notePwd;
-            document.getElementById('shiftValue').value = shiftValue;
+            if (shiftValue) document.getElementById('shiftValue').value = shiftValue;
             
             modal.style.display = 'block';
         }
@@ -542,7 +566,7 @@
         async function loadData() {
             const noteName = localStorage.getItem('note_name');
             const notePwd = localStorage.getItem('note_pwd');
-            currentShift = parseInt(localStorage.getItem('shift_value')) || DEFAULT_SHIFT;
+            currentShift = parseInt(localStorage.getItem('shift_value'));
             
             if (!noteName || !notePwd) {
                 document.getElementById('content').innerHTML = '<div class="card">暂无数据</div>';
@@ -678,7 +702,8 @@
         // 添加 noteName 输入框变化监听
         document.getElementById('noteName').addEventListener('input', function(e) {
             const adminLink = document.getElementById('adminLink');
-            adminLink.href = 'https://netcut.cn/' + e.target.value;
+            const noteName = e.target.value.trim();
+            adminLink.href = noteName ? 'https://netcut.cn/' + noteName : '#';
         });
 
         // 打开创建对话框
@@ -798,10 +823,9 @@
         // 页面加载时初始化 shift 值
         window.onload = function() {
             const savedShift = localStorage.getItem('shift_value');
-            if (!savedShift) {
-                localStorage.setItem('shift_value', DEFAULT_SHIFT.toString());
+            if (savedShift) {
+                currentShift = parseInt(savedShift);
             }
-            currentShift = parseInt(savedShift) || DEFAULT_SHIFT;
             loadData();
         };
 
@@ -924,7 +948,7 @@
         function exportConfig() {
             const noteName = localStorage.getItem('note_name') || '';
             const notePwd = localStorage.getItem('note_pwd') || '';
-            const shiftValue = localStorage.getItem('shift_value') || DEFAULT_SHIFT.toString();
+            const shiftValue = localStorage.getItem('shift_value') || '';
 
             const config = {
                 note_name: noteName,
@@ -1020,6 +1044,100 @@
             } catch (error) {
                 console.error('生成二维码失败:', error);
                 alert('生成二维码失败: ' + error.message);
+            }
+        }
+
+        // 添加访问后台页面的函数
+        function openAdminPage(event) {
+            event.preventDefault();
+            const noteName = document.getElementById('noteName').value.trim();
+            if (!noteName) {
+                alert('请先填写笔记本名称');
+                return;
+            }
+            window.open('https://netcut.cn/' + noteName, '_blank');
+        }
+
+        // 生成随机字符串的函数
+        function generateRandomString(length) {
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // 生成随机整数的函数
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // 一键生成配置的函数
+        async function generateRandomConfig() {
+            const noteName = document.getElementById('noteName').value.trim();
+            const notePwd = document.getElementById('notePwd').value.trim();
+            const shiftValue = document.getElementById('shiftValue').value.trim();
+            
+            if (noteName || notePwd || shiftValue) {
+                if (!confirm('当前已有配置信息，是否覆盖？')) {
+                    return;
+                }
+            }
+
+            const randomNoteName = generateRandomString(8);
+            const randomNotePwd = generateRandomString(6);
+            const randomShift = getRandomInt(1000, 65535); // 生成1000-65535之间的随机数
+            
+            // 先尝试创建笔记
+            try {
+                const response = await fetch('https://api.txttool.cn/netcut/note/save/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json',
+                        'Origin': 'https://netcut.cn',
+                        'Referer': 'https://netcut.cn/'
+                    },
+                    body: `note_name=${encodeURIComponent(randomNoteName)}&note_pwd=${encodeURIComponent(randomNotePwd)}&note_id=&note_content=&note_token=&expire_time=31536000`
+                });
+
+                const data = await response.json();
+                if (data.status !== 1) {
+                    throw new Error(data.msg || '创建笔记失败');
+                }
+
+                // 创建成功后更新界面
+                document.getElementById('noteName').value = randomNoteName;
+                document.getElementById('notePwd').value = randomNotePwd;
+                document.getElementById('shiftValue').value = randomShift;
+                document.getElementById('adminLink').href = 'https://netcut.cn/' + randomNoteName;
+
+                // 保存到本地存储并关闭设置对话框
+                localStorage.setItem('note_name', randomNoteName);
+                localStorage.setItem('note_pwd', randomNotePwd);
+                localStorage.setItem('shift_value', randomShift.toString());
+                currentShift = randomShift;
+
+                alert('配置生成成功');
+                document.getElementById('settingsModal').style.display = 'none';
+                loadData(); // 重新加载数据
+            } catch (error) {
+                alert('创建笔记失败: ' + error.message);
+            }
+        }
+
+        // 添加显示/隐藏密码的函数
+        function togglePassword() {
+            const pwdInput = document.getElementById('notePwd');
+            const eyeBtn = document.querySelector('.eye-btn');
+            
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeBtn.classList.add('active');
+            } else {
+                pwdInput.type = 'password';
+                eyeBtn.classList.remove('active');
             }
         }
     </script>

@@ -4,10 +4,8 @@
 ## 使用方法
 1. Clone 或者下载本项目
 2. 使用浏览器打开 html/texttransfer.html 文件。
-3. 点击页面右上角的设置按钮，点击访问后台，创建一个自己的剪贴板，并设置密码。将剪贴板名称和密码填入设置页面，同时可以调整 Base64 移位值，保证网页和 APP 上的值一致即可。
-4. 从 Release 页面下载 apk 文件，安装到手机上，然后设置一样的剪贴板名称和密码。
-5. 在手机上复制文本，然后到 APP 中点击右下角的粘贴按钮，即可将文本粘贴到 APP 中。
-6. 在电脑上点击上面网页右上角的刷新按钮，即可看到手机上复制的文本。
+3. 点击页面右上角的设置按钮，点击“一键生成配置”，然后再打开设置，点击生成二维码。
+4. 从 Release 页面下载 apk 文件，安装到手机上，在设置页面扫描即完成配置，可以开始使用。
 
 ## 截图
 <img src="https://i.ibb.co/7vHvsGG/texttransfer-android.png" alt="Android screenshot" height="300"/> <img src="https://i.ibb.co/sjYrQM8/texttransfer-web-list.png" alt="PC screenshot" height="300"/>
