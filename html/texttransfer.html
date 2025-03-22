@@ -78,11 +78,14 @@
 
         .modal-content {
             background-color: white;
-            margin: 15% auto;
+            margin: 5% auto;
             padding: 20px;
             width: 80%;
             max-width: 500px;
             border-radius: 8px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
         }
 
         .input-field {
@@ -307,6 +310,32 @@
         .delete-btn:active {
             background-color: rgba(244, 67, 54, 0.2);
         }
+
+        /* 添加导入导出按钮组样式 */
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .secondary-btn {
+            background: none;
+            border: 1px solid #9c27b0;
+            color: #9c27b0;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .secondary-btn:hover {
+            background-color: rgba(156, 39, 176, 0.1);
+        }
+
+        .secondary-btn:active {
+            background-color: rgba(156, 39, 176, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -342,6 +371,15 @@
                 <label class="input-label">Base64 移位值 (0-65535)</label>
                 <input type="number" id="shiftValue" class="input-field" placeholder="移位值">
                 <div class="helper-text">用于加密数据，修改后新数据将使用新的移位值</div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">配置导入导出</label>
+                <div class="button-group">
+                    <button class="secondary-btn" onclick="exportConfig()">导出配置</button>
+                    <input type="file" id="importConfigFile" accept=".json" style="display: none" onchange="handleImportConfig(event)">
+                    <button class="secondary-btn" onclick="document.getElementById('importConfigFile').click()">导入配置</button>
+                </div>
+                <div class="helper-text">导出配置为JSON格式，包含笔记本名称、密码和移位值</div>
             </div>
             <button class="save-btn" onclick="saveSettings()">保存</button>
         </div>
@@ -823,6 +861,72 @@
                 window.open(url, '_blank');
             } catch (error) {
                 alert('打开URL失败: ' + error.message);
+            }
+        }
+
+        // 导出配置为JSON文件
+        function exportConfig() {
+            const noteName = localStorage.getItem('note_name') || '';
+            const notePwd = localStorage.getItem('note_pwd') || '';
+            const shiftValue = localStorage.getItem('shift_value') || DEFAULT_SHIFT.toString();
+
+            const config = {
+                note_name: noteName,
+                note_pwd: notePwd,
+                shift_value: parseInt(shiftValue),
+                export_time: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `texttransfer_config_${noteName || 'default'}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 处理配置文件导入
+        async function handleImportConfig(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const config = JSON.parse(text);
+
+                // 验证配置文件格式
+                if (!config.note_name || !config.note_pwd || !config.shift_value) {
+                    throw new Error('配置文件格式错误');
+                }
+
+                // 验证移位值范围
+                if (config.shift_value < 0 || config.shift_value > 65535) {
+                    throw new Error('移位值必须在 0-65535 之间');
+                }
+
+                // 保存配置
+                localStorage.setItem('note_name', config.note_name);
+                localStorage.setItem('note_pwd', config.note_pwd);
+                localStorage.setItem('shift_value', config.shift_value.toString());
+
+                // 更新设置对话框中的值
+                document.getElementById('noteName').value = config.note_name;
+                document.getElementById('notePwd').value = config.note_pwd;
+                document.getElementById('shiftValue').value = config.shift_value;
+                document.getElementById('adminLink').href = 'https://netcut.cn/' + config.note_name;
+
+                // 重置文件输入
+                event.target.value = '';
+
+                alert('配置导入成功');
+                loadData(); // 重新加载数据
+            } catch (error) {
+                alert('配置导入失败: ' + error.message);
+                event.target.value = '';
             }
         }
     </script>
