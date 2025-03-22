@@ -150,11 +150,15 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final result = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(builder: (context) => const SettingsPage()),
               );
+              if (result == true) {
+                // 如果设置有更改，重新加载数据
+                _makeNetcutRequest();
+              }
             },
           ),
         ],

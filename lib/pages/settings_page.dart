@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:texttransfer/services/settings_service.dart';
+import 'package:texttransfer/pages/qr_scan_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -59,7 +60,21 @@ class _SettingsPageState extends State<SettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('保存成功')),
       );
-      Navigator.pop(context);
+      Navigator.pop(context, true);
+    }
+  }
+
+  Future<void> _scanQRCode() async {
+    // 打开扫码页面
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const QRScanPage()),
+    );
+
+    // 如果扫码成功，重新加载设置
+    if (result == true) {
+      await _loadSettings();
+      Navigator.pop(context, true);
     }
   }
 
@@ -110,12 +125,27 @@ class _SettingsPageState extends State<SettingsPage> {
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _saveSettings,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-              ),
-              child: const Text('保存'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saveSettings,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    child: const Text('保存'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _scanQRCode,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(50, 50),
+                    padding: const EdgeInsets.all(0),
+                  ),
+                  child: const Icon(Icons.qr_code_scanner),
+                ),
+              ],
             ),
           ],
         ),
