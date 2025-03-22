@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>文本传输助手</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -336,6 +337,45 @@
         .secondary-btn:active {
             background-color: rgba(156, 39, 176, 0.2);
         }
+
+        /* 添加二维码对话框样式 */
+        .qrcode-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .qrcode-modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 300px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .qrcode-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .close-btn {
+            color: #666;
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -378,10 +418,21 @@
                     <button class="secondary-btn" onclick="exportConfig()">导出配置</button>
                     <input type="file" id="importConfigFile" accept=".json" style="display: none" onchange="handleImportConfig(event)">
                     <button class="secondary-btn" onclick="document.getElementById('importConfigFile').click()">导入配置</button>
+                    <button class="secondary-btn" onclick="showQRCode()">生成二维码</button>
                 </div>
                 <div class="helper-text">导出配置为JSON格式，包含笔记本名称、密码和移位值</div>
             </div>
             <button class="save-btn" onclick="saveSettings()">保存</button>
+        </div>
+    </div>
+
+    <!-- 二维码对话框 -->
+    <div id="qrcodeModal" class="qrcode-modal">
+        <div class="qrcode-modal-content">
+            <span class="close-btn" onclick="document.getElementById('qrcodeModal').style.display='none'">&times;</span>
+            <h3>配置二维码</h3>
+            <div class="qrcode-container" id="qrcodeContainer"></div>
+            <div class="helper-text">扫描二维码可获取配置信息</div>
         </div>
     </div>
 
@@ -469,11 +520,16 @@
         window.onclick = function(event) {
             const settingsModal = document.getElementById('settingsModal');
             const createModal = document.getElementById('createModal');
+            const qrcodeModal = document.getElementById('qrcodeModal');
+            
             if (event.target == settingsModal) {
                 settingsModal.style.display = 'none';
             }
             if (event.target == createModal) {
                 createModal.style.display = 'none';
+            }
+            if (event.target == qrcodeModal) {
+                qrcodeModal.style.display = 'none';
             }
         }
 
@@ -927,6 +983,43 @@
             } catch (error) {
                 alert('配置导入失败: ' + error.message);
                 event.target.value = '';
+            }
+        }
+
+        // 生成二维码
+        function showQRCode() {
+            const noteName = localStorage.getItem('note_name');
+            const notePwd = localStorage.getItem('note_pwd');
+            const shiftValue = localStorage.getItem('shift_value');
+
+            if (!noteName || !notePwd || !shiftValue) {
+                alert('请先在设置中配置账号信息');
+                return;
+            }
+
+            const qrcodeContainer = document.getElementById('qrcodeContainer');
+            qrcodeContainer.innerHTML = '';
+
+            try {
+                const config = {
+                    note_name: noteName,
+                    note_pwd: notePwd,
+                    shift_value: parseInt(shiftValue)
+                };
+
+                new QRCode(qrcodeContainer, {
+                    text: JSON.stringify(config),
+                    width: 256,
+                    height: 256,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                document.getElementById('qrcodeModal').style.display = 'block';
+            } catch (error) {
+                console.error('生成二维码失败:', error);
+                alert('生成二维码失败: ' + error.message);
             }
         }
     </script>
