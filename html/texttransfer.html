@@ -116,6 +116,9 @@
         /* 设置对话框样式补充 */
         .modal-content h2 {
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .input-group {
@@ -434,7 +437,10 @@
     <!-- 设置对话框 -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
-            <h2>设置</h2>
+            <h2>
+                设置
+                <span class="close-btn" onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
+            </h2>
             <div class="button-group" style="margin-bottom: 16px;">
                 <button class="secondary-btn" onclick="generateRandomConfig()">一键生成配置</button>
             </div>
