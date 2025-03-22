@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>文本传输助手</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.staticfile.org/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -395,6 +395,22 @@
         .eye-btn.active {
             opacity: 1;
         }
+
+        .footer {
+            text-align: center;
+            padding: 16px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: #9c27b0;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -409,6 +425,10 @@
 
     <div class="container" id="content">
         <!-- 内容将通过 JavaScript 动态加载 -->
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/callmepeanut/texttransfer" target="_blank">项目地址</a>
     </div>
 
     <!-- 设置对话框 -->
