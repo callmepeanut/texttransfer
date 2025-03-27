@@ -4,7 +4,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:texttransfer/services/settings_service.dart';
 
 class QRScanPage extends StatefulWidget {
-  const QRScanPage({super.key});
+  final bool createNewConfig;
+  
+  const QRScanPage({
+    super.key, 
+    this.createNewConfig = false,
+  });
 
   @override
   State<QRScanPage> createState() => _QRScanPageState();
@@ -92,7 +97,22 @@ class _QRScanPageState extends State<QRScanPage> {
         throw Exception('移位值必须在 0-65535 之间');
       }
 
-      await SettingsService.saveSettings(noteName, notePwd, shiftValue);
+      if (widget.createNewConfig) {
+        // 创建新配置
+        final newConfig = Config(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: '扫码配置 ${DateTime.now().millisecondsSinceEpoch.toString().substring(8, 13)}',
+          noteName: noteName,
+          notePwd: notePwd,
+          shift: shiftValue,
+        );
+        
+        await SettingsService.saveConfig(newConfig);
+        await SettingsService.setActiveConfigId(newConfig.id);
+      } else {
+        // 更新当前配置
+        await SettingsService.saveSettings(noteName, notePwd, shiftValue);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

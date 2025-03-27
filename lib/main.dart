@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:texttransfer/models/text_item.dart';
 import 'package:texttransfer/pages/settings_page.dart';
+import 'package:texttransfer/pages/config_select_page.dart';
 import 'package:texttransfer/services/netcut_service.dart';
+import 'package:texttransfer/services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await SettingsService.init();  // 初始化 MMKV
+  await SettingsService.init();  // 初始化设置服务
   runApp(const MyApp());
 }
 
@@ -38,11 +40,22 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List<TextItem>? _texts;
   bool _isLoading = false;
+  String _activeConfigName = '';
 
   @override
   void initState() {
     super.initState();
+    _loadActiveConfigName();
     _makeNetcutRequest();
+  }
+
+  Future<void> _loadActiveConfigName() async {
+    final activeConfig = await SettingsService.getActiveConfig();
+    if (activeConfig != null) {
+      setState(() {
+        _activeConfigName = activeConfig.name;
+      });
+    }
   }
 
   Future<void> _makeNetcutRequest() async {
@@ -129,12 +142,48 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _openConfigSelector() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const ConfigSelectPage()),
+    );
+
+    if (result == true) {
+      // 重新加载配置名称
+      await _loadActiveConfigName();
+      // 重新获取数据
+      await _makeNetcutRequest();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.swap_horiz),
+              onPressed: _openConfigSelector,
+              tooltip: '切换配置',
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: _openConfigSelector,
+                child: Text(
+                  _activeConfigName.isNotEmpty 
+                    ? _activeConfigName 
+                    : widget.title,
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    decorationStyle: TextDecorationStyle.dotted,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           if (_isLoading)
             const Padding(
@@ -157,6 +206,7 @@ class _MyHomePageState extends State<MyHomePage> {
               );
               if (result == true) {
                 // 如果设置有更改，重新加载数据
+                await _loadActiveConfigName();
                 _makeNetcutRequest();
               }
             },
