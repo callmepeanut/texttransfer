@@ -108,7 +108,6 @@ class _QRScanPageState extends State<QRScanPage> {
         );
         
         await SettingsService.saveConfig(newConfig);
-        await SettingsService.setActiveConfigId(newConfig.id);
       } else {
         // 更新当前配置
         await SettingsService.saveSettings(noteName, notePwd, shiftValue);
