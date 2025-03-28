@@ -153,7 +153,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: const Text('确认删除', style: TextStyle(fontSize: 18)),
           content: RichText(
             text: TextSpan(
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.black87,
                 fontSize: 14,
                 height: 1.5,
