@@ -56,7 +56,7 @@ class _ConfigSelectPageState extends State<ConfigSelectPage> {
                       fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                  subtitle: Text('Note: ${config.noteName}'),
+                  subtitle: Text('API Key: ${config.apiKey.length > 10 ? '${config.apiKey.substring(0, 10)}...' : config.apiKey}'),
                   trailing: isActive
                       ? const Icon(Icons.check_circle, color: Colors.green)
                       : null,

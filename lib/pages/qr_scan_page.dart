@@ -85,12 +85,36 @@ class _QRScanPageState extends State<QRScanPage> {
       final data = jsonDecode(barcodes.first.rawValue ?? '');
       if (data is! Map<String, dynamic>) throw Exception('无效的配置格式');
 
-      final noteName = data['note_name'] as String?;
-      final notePwd = data['note_pwd'] as String?;
-      final shiftValue = data['shift_value'] as int?;
+      String? apiKey;
+      int? shiftValue;
 
-      if (noteName == null || notePwd == null || shiftValue == null) {
+      // 支持新旧版本的二维码格式
+      if (data['version'] == '2.0') {
+        // 新版本格式
+        apiKey = data['api_key'] as String?;
+        shiftValue = data['shift_value'] as int?;
+      } else {
+        // 旧版本格式兼容
+        final noteName = data['note_name'] as String?;
+        final notePwd = data['note_pwd'] as String?;
+        shiftValue = data['shift_value'] as int?;
+
+        if (noteName != null && notePwd != null) {
+          apiKey = noteName; // 使用 noteName 作为 API Key
+        }
+      }
+
+      if (apiKey == null || shiftValue == null) {
         throw Exception('配置信息不完整');
+      }
+
+      // 验证 API Key
+      if (apiKey.length < 6 || apiKey.length > 60) {
+        throw Exception('API Key 必须在6-60位字符之间');
+      }
+
+      if (apiKey.contains('/')) {
+        throw Exception('API Key 不能包含斜线字符');
       }
 
       if (shiftValue < 0 || shiftValue > 65535) {
@@ -102,15 +126,15 @@ class _QRScanPageState extends State<QRScanPage> {
         final newConfig = Config(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           name: '扫码配置 ${DateTime.now().millisecondsSinceEpoch.toString().substring(8, 13)}',
-          noteName: noteName,
-          notePwd: notePwd,
+          apiKey: apiKey,
           shift: shiftValue,
         );
-        
+
         await SettingsService.saveConfig(newConfig);
+        await SettingsService.setActiveConfigId(newConfig.id);
       } else {
         // 更新当前配置
-        await SettingsService.saveSettings(noteName, notePwd, shiftValue);
+        await SettingsService.saveSettings(apiKey, shiftValue);
       }
 
       if (mounted) {

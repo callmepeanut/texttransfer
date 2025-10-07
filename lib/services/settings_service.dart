@@ -4,15 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class Config {
   String id;
   String name;
-  String noteName;
-  String notePwd;
+  String apiKey;
   int shift;
 
   Config({
     required this.id,
     required this.name,
-    required this.noteName,
-    required this.notePwd,
+    required this.apiKey,
     required this.shift,
   });
 
@@ -20,8 +18,7 @@ class Config {
     return {
       'id': id,
       'name': name,
-      'noteName': noteName,
-      'notePwd': notePwd,
+      'apiKey': apiKey,
       'shift': shift,
     };
   }
@@ -30,8 +27,8 @@ class Config {
     return Config(
       id: json['id'],
       name: json['name'],
-      noteName: json['noteName'],
-      notePwd: json['notePwd'],
+      // Support both old and new formats for migration
+      apiKey: json['apiKey'] ?? json['noteName'] ?? '',
       shift: json['shift'],
     );
   }
@@ -46,45 +43,48 @@ class SettingsService {
   static const String _noteNameKey = 'note_name';
   static const String _notePwdKey = 'note_pwd';
   static const String _shiftKey = 'shift_value';
+  static const String _apiKeyKey = 'api_key';
 
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // 如果没有配置，检查是否有旧版本的配置数据
+    // 检查是否有旧版本的配置数据需要迁移
     if (!prefs.containsKey(_configsKey) || (prefs.getStringList(_configsKey)?.isEmpty ?? true)) {
       // 从旧版本迁移数据
       final oldNoteName = prefs.getString(_noteNameKey);
       final oldNotePwd = prefs.getString(_notePwdKey);
       final oldShift = prefs.getInt(_shiftKey) ?? defaultShift;
-      
-      if (oldNoteName != null && oldNotePwd != null) {
-        // 创建默认配置并设为活跃
-        final defaultConfig = Config(
+
+      // 检查是否有新的 API Key 配置
+      final oldApiKey = prefs.getString(_apiKeyKey);
+
+      if (oldApiKey != null) {
+        // 使用新的 API Key 配置
+        final migratedConfig = Config(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: "默认配置",
-          noteName: oldNoteName,
-          notePwd: oldNotePwd,
+          name: "已迁移的配置",
+          apiKey: oldApiKey,
           shift: oldShift,
         );
-        
-        await saveConfig(defaultConfig);
-        await setActiveConfigId(defaultConfig.id);
-      } else {
-        // 如果没有旧数据，创建空的默认配置
-        final defaultConfig = Config(
+
+        await saveConfig(migratedConfig);
+        await setActiveConfigId(migratedConfig.id);
+      } else if (oldNoteName != null && oldNotePwd != null) {
+        // 从旧版本迁移：使用 noteName 作为 API Key
+        final migratedConfig = Config(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: "默认配置",
-          noteName: "",
-          notePwd: "",
-          shift: defaultShift,
+          name: "已迁移的配置",
+          apiKey: oldNoteName,  // 使用旧的 noteName 作为 API Key
+          shift: oldShift,
         );
-        
-        await saveConfig(defaultConfig);
-        await setActiveConfigId(defaultConfig.id);
+
+        await saveConfig(migratedConfig);
+        await setActiveConfigId(migratedConfig.id);
       }
+      // 注意：如果没有旧数据，不再自动创建默认配置
     }
     
-    // 确保至少有一个活跃的配置ID
+    // 如果有配置但没有活跃的配置ID，设置第一个为活跃配置
     final activeId = await getActiveConfigId();
     if (activeId == null) {
       final configs = await getAllConfigs();
@@ -166,15 +166,22 @@ class SettingsService {
     }
   }
 
-  // 兼容旧版本的方法
-  static Future<String?> getNoteName() async {
+  // 新的 API 方法
+  static Future<String?> getApiKey() async {
     final activeConfig = await getActiveConfig();
-    return activeConfig?.noteName;
+    return activeConfig?.apiKey;
   }
 
-  static Future<String?> getNotePwd() async {
+  // 兼容旧版本的方法 (已弃用)
+  @Deprecated('Use getApiKey() instead')
+  static Future<String?> getNoteName() async {
     final activeConfig = await getActiveConfig();
-    return activeConfig?.notePwd;
+    return activeConfig?.apiKey;  // 返回 apiKey
+  }
+
+  @Deprecated('This method is no longer used')
+  static Future<String?> getNotePwd() async {
+    return null;  // 不再使用密码
   }
 
   static Future<int> getShift() async {
@@ -182,10 +189,10 @@ class SettingsService {
     return activeConfig?.shift ?? defaultShift;
   }
 
-  static Future<void> saveSettings(String noteName, String notePwd, int shift) async {
+  static Future<void> saveSettings(String apiKey, int shift) async {
     final activeId = await getActiveConfigId();
     final configs = await getAllConfigs();
-    
+
     if (activeId != null) {
       final index = configs.indexWhere((c) => c.id == activeId);
       if (index >= 0) {
@@ -193,25 +200,30 @@ class SettingsService {
         final updatedConfig = Config(
           id: activeId,
           name: configs[index].name,
-          noteName: noteName,
-          notePwd: notePwd,
+          apiKey: apiKey,
           shift: shift,
         );
         await saveConfig(updatedConfig);
         return;
       }
     }
-    
+
     // 如果没有活跃配置，创建一个新配置
     final newConfig = Config(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: "新配置",
-      noteName: noteName,
-      notePwd: notePwd,
+      apiKey: apiKey,
       shift: shift,
     );
-    
+
     await saveConfig(newConfig);
     await setActiveConfigId(newConfig.id);
+  }
+
+  // 兼容旧版本的方法
+  @Deprecated('Use saveSettings(String apiKey, int shift) instead')
+  static Future<void> saveSettingsOld(String noteName, String notePwd, int shift) async {
+    // 将旧的 noteName 作为 API Key
+    await saveSettings(noteName, shift);
   }
 } 

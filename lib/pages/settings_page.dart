@@ -10,14 +10,14 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final _noteNameController = TextEditingController();
-  final _notePwdController = TextEditingController();
+  final _apiKeyController = TextEditingController();
   final _shiftController = TextEditingController();
   final _configNameController = TextEditingController();
   
   List<Config> _configs = [];
   String? _activeConfigId;
   bool _isEditingName = false;
+  bool _isCreatingNewConfig = false;
 
   @override
   void initState() {
@@ -38,28 +38,40 @@ class _SettingsPageState extends State<SettingsPage> {
     final activeConfig = await SettingsService.getActiveConfig();
     
     if (activeConfig != null) {
-      _noteNameController.text = activeConfig.noteName;
-      _notePwdController.text = activeConfig.notePwd;
+      _apiKeyController.text = activeConfig.apiKey;
       _shiftController.text = activeConfig.shift.toString();
       _configNameController.text = activeConfig.name;
     } else {
-      // 清空表单
-      _noteNameController.clear();
-      _notePwdController.clear();
+      // 清空表单 - 不设置默认配置名称
+      _apiKeyController.clear();
       _shiftController.text = SettingsService.defaultShift.toString();
-      _configNameController.text = "新配置";
+      _configNameController.clear();
     }
   }
 
   Future<void> _saveSettings() async {
-    final noteName = _noteNameController.text.trim();
-    final notePwd = _notePwdController.text.trim();
+    final apiKey = _apiKeyController.text.trim();
     final shiftText = _shiftController.text.trim();
     final configName = _configNameController.text.trim();
-    
-    if (noteName.isEmpty || notePwd.isEmpty || shiftText.isEmpty || configName.isEmpty) {
+
+    if (apiKey.isEmpty || shiftText.isEmpty || configName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请填写完整信息')),
+      );
+      return;
+    }
+
+    // 验证 API Key
+    if (apiKey.length < 6 || apiKey.length > 60) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API Key 必须在6-60位字符之间')),
+      );
+      return;
+    }
+
+    if (apiKey.contains('/')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API Key 不能包含斜线字符')),
       );
       return;
     }
@@ -79,8 +91,7 @@ class _SettingsPageState extends State<SettingsPage> {
         orElse: () => Config(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           name: configName,
-          noteName: noteName,
-          notePwd: notePwd,
+          apiKey: apiKey,
           shift: shift,
         ),
       );
@@ -88,8 +99,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final updatedConfig = Config(
         id: activeConfig.id,
         name: configName,
-        noteName: noteName,
-        notePwd: notePwd,
+        apiKey: apiKey,
         shift: shift,
       );
       
@@ -100,8 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final newConfig = Config(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: configName,
-        noteName: noteName,
-        notePwd: notePwd,
+        apiKey: apiKey,
         shift: shift,
       );
       
@@ -112,6 +121,7 @@ class _SettingsPageState extends State<SettingsPage> {
     // 重新加载配置列表
     await _loadConfigs();
     _isEditingName = false;
+    _isCreatingNewConfig = false;
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -124,11 +134,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _createNewConfig() async {
     setState(() {
       _activeConfigId = null;
-      _noteNameController.clear();
-      _notePwdController.clear();
+      _apiKeyController.clear();
       _shiftController.text = SettingsService.defaultShift.toString();
       _configNameController.text = '新配置 ${_configs.length + 1}';
       _isEditingName = true;
+      _isCreatingNewConfig = true;
     });
   }
 
@@ -239,11 +249,13 @@ class _SettingsPageState extends State<SettingsPage> {
     // 如果扫码成功，重新加载配置
     if (result == true) {
       await _loadConfigs();
-      
-      // 返回并通知主页刷新
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
+
+      // 重置创建新配置状态
+      setState(() {
+        _isCreatingNewConfig = false;
+      });
+
+      // 不自动返回，让用户看到扫码的配置
     }
   }
 
@@ -275,8 +287,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final updatedConfig = Config(
         id: activeConfig.id,
         name: configName,
-        noteName: activeConfig.noteName,
-        notePwd: activeConfig.notePwd,
+        apiKey: activeConfig.apiKey,
         shift: activeConfig.shift,
       );
       
@@ -330,8 +341,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _noteNameController.dispose();
-    _notePwdController.dispose();
+    _apiKeyController.dispose();
     _shiftController.dispose();
     _configNameController.dispose();
     super.dispose();
@@ -381,6 +391,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 ).then((result) async {
                   if (result == true) {
                     await _loadConfigs();
+                    // 重置创建新配置状态
+                    setState(() {
+                      _isCreatingNewConfig = false;
+                    });
                   }
                 });
               } else if (value == 'manual') {
@@ -398,7 +412,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _shouldShowEmptyState() {
     // 如果正在创建新配置，不显示空状态
-    if (_configNameController.text.isNotEmpty) {
+    if (_isCreatingNewConfig) {
       return false;
     }
     // 如果没有配置且没有活跃配置ID，显示空状态
@@ -415,65 +429,11 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           const Icon(Icons.settings, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text('没有配置', style: TextStyle(fontSize: 18)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              // 显示创建选项菜单
-              final RenderBox button = context.findRenderObject() as RenderBox;
-              final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-              final RelativeRect position = RelativeRect.fromRect(
-                Rect.fromPoints(
-                  button.localToGlobal(Offset.zero, ancestor: overlay),
-                  button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
-                ),
-                Offset.zero & overlay.size,
-              );
-              
-              showMenu<String>(
-                context: context,
-                position: position,
-                items: [
-                  const PopupMenuItem<String>(
-                    value: 'scan',
-                    child: Row(
-                      children: [
-                        Icon(Icons.qr_code_scanner, size: 20),
-                        SizedBox(width: 10),
-                        Text('扫码创建配置'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'manual',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 20),
-                        SizedBox(width: 10),
-                        Text('手动填写配置'),
-                      ],
-                    ),
-                  ),
-                ],
-              ).then((value) {
-                if (value == 'scan') {
-                  // 打开扫码页面，并明确指定为创建新配置模式
-                  Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(builder: (context) => const QRScanPage(
-                      createNewConfig: true,
-                    )),
-                  ).then((result) async {
-                    if (result == true) {
-                      await _loadConfigs();
-                    }
-                  });
-                } else if (value == 'manual') {
-                  _createNewConfig();
-                }
-              });
-            },
-            child: const Text('创建新配置'),
+          const Text('还没有配置', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          const Text(
+            '点击右上角的 ＋ 号创建配置',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
         ],
       ),
@@ -503,20 +463,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _noteNameController,
+            controller: _apiKeyController,
             decoration: const InputDecoration(
-              labelText: 'Note Name',
+              labelText: 'API Key (6-60位字符，不包含斜线)',
               border: OutlineInputBorder(),
+              helperText: '用于访问数据的唯一标识',
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _notePwdController,
-            decoration: const InputDecoration(
-              labelText: 'Note Password',
-              border: OutlineInputBorder(),
-            ),
-            obscureText: true,
+            maxLength: 60,
           ),
           const SizedBox(height: 16),
           TextField(

@@ -6,6 +6,22 @@ import 'package:texttransfer/pages/settings_page.dart';
 import 'package:texttransfer/pages/config_select_page.dart';
 import 'package:texttransfer/services/netcut_service.dart';
 import 'package:texttransfer/services/settings_service.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
+
+Future<String> getDeviceInfo() async {
+  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+  if (Platform.isAndroid) {
+    AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+    return '${androidInfo.brand} ${androidInfo.model}';
+  } else if (Platform.isIOS) {
+    IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+    return 'Apple ${iosInfo.model}';
+  } else {
+    return 'Flutter App';
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,9 +127,10 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
+      final deviceInfo = await getDeviceInfo();
       final newItem = TextItem(
         content: clipboardData.text!,
-        device: 'Flutter App',
+        device: deviceInfo,
         createTime: DateTime.now().millisecondsSinceEpoch,
       );
 
