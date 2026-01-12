@@ -494,26 +494,69 @@
         let currentShift = null;
 
         function encryptText(text, shift) {
-            // 字符移位加密
-            const shifted = String.fromCharCode(
-                ...Array.from(text).map(char => (char.charCodeAt(0) + shift) % 65536)
-            );
-            // Base64 编码
-            return btoa(unescape(encodeURIComponent(shifted)));
+            try {
+                // 使用 TextEncoder 进行 UTF-8 编码
+                const encoder = new TextEncoder();
+                const bytes = encoder.encode(text);
+
+                // 对字节进行移位加密，避免产生无效的 Unicode 码点
+                const shiftedBytes = new Uint8Array(bytes.map(byte => (byte + shift) % 256));
+
+                // 转换为字符串并进行 Base64 编码
+                const binaryString = String.fromCharCode(...shiftedBytes);
+                return btoa(binaryString);
+            } catch (error) {
+                console.error('加密失败:', error);
+                // 降级处理：直接返回 Base64 编码的原文
+                return btoa(unescape(encodeURIComponent(text)));
+            }
         }
 
         function decryptText(encrypted, shift) {
-            try {
-                // Base64 解码
-                const decoded = decodeURIComponent(escape(atob(encrypted)));
-                // 字符移位解密
-                return String.fromCharCode(
-                    ...Array.from(decoded).map(char => (char.charCodeAt(0) - shift + 65536) % 65536)
-                );
-            } catch (e) {
-                // 如果解密失败，返回原文（兼容未加密的旧数据）
-                return encrypted;
+            // 尝试多种解密策略
+            const strategies = [
+                // 策略1: 尝试旧版本的解密方式（最常见的情况）
+                () => {
+                    const decoded = decodeURIComponent(escape(atob(encrypted)));
+                    return String.fromCharCode(
+                        ...Array.from(decoded).map(char => (char.charCodeAt(0) - shift + 65536) % 65536)
+                    );
+                },
+                // 策略2: 新的字节级解密
+                () => {
+                    const binaryString = atob(encrypted);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const unshiftedBytes = new Uint8Array(bytes.map(byte => (byte - shift + 256) % 256));
+                    const decoder = new TextDecoder();
+                    return decoder.decode(unshiftedBytes);
+                },
+                // 策略3: 直接Base64解码（无加密）
+                () => {
+                    return atob(encrypted);
+                },
+                // 策略4: 返回原文（未加密的数据）
+                () => {
+                    return encrypted;
+                }
+            ];
+
+            for (let i = 0; i < strategies.length; i++) {
+                try {
+                    const result = strategies[i]();
+                    // 验证结果是否是有效的JSON
+                    JSON.parse(result);
+                    console.log(`解密策略${i + 1}成功`);
+                    return result;
+                } catch (e) {
+                    console.log(`解密策略${i + 1}失败:`, e.message);
+                }
             }
+
+            console.error('所有解密策略都失败了');
+            return encrypted;
         }
 
         // 修改存储设置函数
@@ -615,10 +658,13 @@
                 }
                     
                     try {
-                        // 解密数据
+                        // 使用改进的解密函数（它会自动尝试多种策略）
                         const decryptedContent = decryptText(noteContentStr, currentShift);
-                        const noteContent = JSON.parse(decryptedContent);
-                        const texts = noteContent.texts || [];
+                        console.log('解密后的内容长度:', decryptedContent.length);
+
+                        // 解析JSON数据
+                        const parsedData = JSON.parse(decryptedContent);
+                        const texts = parsedData.texts || [];
                         
                         document.getElementById('content').innerHTML = texts.map(item => {
                             // 检查是否是URL
@@ -656,48 +702,14 @@
                                 </div>
                             `;
                         }).join('');
-                    } catch (decryptError) {
-                        console.error('解密失败:', decryptError);
-                        // 如果解密失败，尝试直接解析原始数据（兼容未加密的旧数据）
-                        const noteContent = JSON.parse(noteContentStr);
-                        const texts = noteContent.texts || [];
-                        
-                        document.getElementById('content').innerHTML = texts.map(item => {
-                            // 检查是否是URL
-                            const isUrl = /^(https?:\/\/[^\s]+)$/.test(item.content.trim());
-                            // 对内容进行转义，确保在HTML和JS中都可以安全使用
-                            const escapedContent = JSON.stringify(item.content);
-                            // 对显示内容进行HTML转义
-                            const displayContent = item.content
-                                .replace(/&/g, '&amp;')
-                                .replace(/</g, '&lt;')
-                                .replace(/>/g, '&gt;')
-                                .replace(/"/g, '&quot;')
-                                .replace(/'/g, '&#039;');
-                            
-                            return `
-                                <div class="card">
-                                    <div class="card-header">
-                                        <div class="content">${displayContent}</div>
-                                        <div class="card-actions">
-                                            <button class="delete-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="deleteTextByElement(this)">
-                                                删除
-                                            </button>
-                                            <button class="copy-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="copyTextByElement(this)">
-                                                复制
-                                            </button>
-                                            ${isUrl ? `
-                                                <button class="open-btn" data-content="${escapedContent.replace(/"/g, '&quot;')}" onclick="openUrlByElement(this)">
-                                                    打开
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    <div class="meta">设备: ${item.device}</div>
-                                    <div class="meta">时间: ${new Date(item.createTime).toLocaleString()}</div>
-                                </div>
-                            `;
-                        }).join('');
+                    } catch (error) {
+                        console.error('数据处理失败:', error);
+                        document.getElementById('content').innerHTML = `
+                            <div class="card">
+                                数据处理失败: ${error.message}
+                            </div>
+                        `;
+                        return;
                     }
             } catch (error) {
                 console.error('加载失败:', error);
